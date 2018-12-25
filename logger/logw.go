@@ -14,64 +14,88 @@ import (
 	"time"
 )
 
-var defaultlog *logBean = getdefaultLogger()
-var skip int = 4
+var (
+	skip       = 4
+	defaultlog = getdefaultLogger()
+)
 
-type logger struct {
+// Logger represents a logger.
+type Logger struct {
 	lb *logBean
 }
 
-func (this *logger) SetConsole(isConsole bool) {
-	this.lb.setConsole(isConsole)
+// SetConsole set if output the log to console.
+func (l *Logger) SetConsole(isConsole bool) {
+	l.lb.setConsole(isConsole)
 }
 
-func (this *logger) SetLevel(_level LEVEL) {
-	this.lb.setLevel(_level)
+// SetLevel set the log level.
+func (l *Logger) SetLevel(_level Level) {
+	l.lb.setLevel(_level)
 }
 
-func (this *logger) SetFormat(logFormat string) {
-	this.lb.setFormat(logFormat)
+// SetFormat set the log format.
+func (l *Logger) SetFormat(logFormat string) {
+	l.lb.setFormat(logFormat)
 }
 
-func (this *logger) SetRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _unit UNIT) {
-	this.lb.setRollingFile(fileDir, fileName, maxNumber, maxSize, _unit)
+// SetRollingFile set the rolling file.
+func (l *Logger) SetRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _unit Unit) {
+	l.lb.setRollingFile(fileDir, fileName, maxNumber, maxSize, _unit)
 }
 
-func (this *logger) SetRollingDaily(fileDir, fileName string) {
-	this.lb.setRollingDaily(fileDir, fileName)
+// SetRollingDaily set the daily rolling file.
+func (l *Logger) SetRollingDaily(fileDir, fileName string) {
+	l.lb.setRollingDaily(fileDir, fileName)
 }
 
-func (this *logger) Trace(v ...interface{}) {
-	this.lb.trace(v...)
+// SetRollingHourly set the hourly rolling file.
+func (l *Logger) SetRollingHourly(fileDir, fileName string) {
+	l.lb.setRollingHourly(fileDir, fileName)
 }
 
-func (this *logger) Debug(v ...interface{}) {
-	this.lb.debug(v...)
-}
-func (this *logger) Info(v ...interface{}) {
-	this.lb.info(v...)
-}
-func (this *logger) Warn(v ...interface{}) {
-	this.lb.warn(v...)
-}
-func (this *logger) Error(v ...interface{}) {
-	this.lb.error(v...)
-}
-func (this *logger) Fatal(v ...interface{}) {
-	this.lb.fatal(v...)
+// Trace print trace level log.
+func (l *Logger) Trace(v ...interface{}) {
+	l.lb.trace(v...)
 }
 
-func (this *logger) SetLevelFile(level LEVEL, dir, fileName string) {
-	this.lb.setLevelFile(level, dir, fileName)
+// Debug print debug level log.
+func (l *Logger) Debug(v ...interface{}) {
+	l.lb.debug(v...)
+}
+
+// Info print info level log.
+func (l *Logger) Info(v ...interface{}) {
+	l.lb.info(v...)
+}
+
+// Warn print warn level log.
+func (l *Logger) Warn(v ...interface{}) {
+	l.lb.warn(v...)
+}
+
+// Error print error level log.
+func (l *Logger) Error(v ...interface{}) {
+	l.lb.error(v...)
+}
+
+// Fatal print fatal level log.
+func (l *Logger) Fatal(v ...interface{}) {
+	l.lb.fatal(v...)
+}
+
+// SetLevelFile set level file.
+func (l *Logger) SetLevelFile(level Level, dir, fileName string) {
+	l.lb.setLevelFile(level, dir, fileName)
 }
 
 type logBean struct {
 	mu              *sync.Mutex
-	logLevel        LEVEL
+	logLevel        Level
 	maxFileSize     int64
 	maxFileCount    int32
 	consoleAppender bool
-	rolltype        _ROLLTYPE
+	rolltype        RollType
 	format          string
 	id              string
 	d, i, w, e, f   string //id
@@ -84,19 +108,19 @@ type fileBeanFactory struct {
 
 var fbf = &fileBeanFactory{fbs: make(map[string]*fileBean, 0), mu: new(sync.RWMutex)}
 
-func (this *fileBeanFactory) add(dir, filename string, _suffix int, maxsize int64, maxfileCount int32) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (f *fileBeanFactory) add(dir, filename string, _suffix int, maxsize int64, maxfileCount int32) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	id := md5str(fmt.Sprint(dir, filename))
-	if _, ok := this.fbs[id]; !ok {
-		this.fbs[id] = newFileBean(dir, filename, _suffix, maxsize, maxfileCount)
+	if _, ok := f.fbs[id]; !ok {
+		f.fbs[id] = newFileBean(dir, filename, _suffix, maxsize, maxfileCount)
 	}
 }
 
-func (this *fileBeanFactory) get(id string) *fileBean {
-	this.mu.RLock()
-	defer this.mu.RUnlock()
-	return this.fbs[id]
+func (f *fileBeanFactory) get(id string) *fileBean {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.fbs[id]
 }
 
 type fileBean struct {
@@ -114,8 +138,9 @@ type fileBean struct {
 	maxFileCount int32
 }
 
-func GetLogger() (l *logger) {
-	l = new(logger)
+// GetLogger returns a new created logger.
+func GetLogger() (l *Logger) {
+	l = new(Logger)
 	l.lb = getdefaultLogger()
 	return
 }
@@ -127,29 +152,29 @@ func getdefaultLogger() (lb *logBean) {
 	return
 }
 
-func (this *logBean) setConsole(isConsole bool) {
-	this.consoleAppender = isConsole
+func (lb *logBean) setConsole(isConsole bool) {
+	lb.consoleAppender = isConsole
 }
 
-func (this *logBean) setLevelFile(level LEVEL, dir, fileName string) {
+func (lb *logBean) setLevelFile(level Level, dir, fileName string) {
 	key := md5str(fmt.Sprint(dir, fileName))
 	switch level {
 	case DEBUG:
-		this.d = key
+		lb.d = key
 	case INFO:
-		this.i = key
+		lb.i = key
 	case WARN:
-		this.w = key
+		lb.w = key
 	case ERROR:
-		this.e = key
+		lb.e = key
 	case FATAL:
-		this.f = key
+		lb.f = key
 	default:
 		return
 	}
 	var _suffix = 0
-	if this.maxFileCount < 1<<31-1 {
-		for i := 1; i < int(this.maxFileCount); i++ {
+	if lb.maxFileCount < 1<<31-1 {
+		for i := 1; i < int(lb.maxFileCount); i++ {
 			if isExist(dir + "/" + fileName + "." + strconv.Itoa(i)) {
 				_suffix = i
 			} else {
@@ -157,27 +182,27 @@ func (this *logBean) setLevelFile(level LEVEL, dir, fileName string) {
 			}
 		}
 	}
-	fbf.add(dir, fileName, _suffix, this.maxFileSize, this.maxFileCount)
+	fbf.add(dir, fileName, _suffix, lb.maxFileSize, lb.maxFileCount)
 }
 
-func (this *logBean) setLevel(_level LEVEL) {
-	this.logLevel = _level
+func (lb *logBean) setLevel(_level Level) {
+	lb.logLevel = _level
 }
 
-func (this *logBean) setFormat(logFormat string) {
-	this.format = logFormat
+func (lb *logBean) setFormat(logFormat string) {
+	lb.format = logFormat
 }
 
-func (this *logBean) setRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _unit UNIT) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (lb *logBean) setRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _unit Unit) {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
 	if maxNumber > 0 {
-		this.maxFileCount = maxNumber
+		lb.maxFileCount = maxNumber
 	} else {
-		this.maxFileCount = 1<<31 - 1
+		lb.maxFileCount = 1<<31 - 1
 	}
-	this.maxFileSize = maxSize * int64(_unit)
-	this.rolltype = _ROLLFILE
+	lb.maxFileSize = maxSize * int64(_unit)
+	lb.rolltype = RollTypeFile
 	mkdirlog(fileDir)
 	var _suffix = 0
 	for i := 1; i < int(maxNumber); i++ {
@@ -187,27 +212,27 @@ func (this *logBean) setRollingFile(fileDir, fileName string, maxNumber int32, m
 			break
 		}
 	}
-	this.id = md5str(fmt.Sprint(fileDir, fileName))
-	fbf.add(fileDir, fileName, _suffix, this.maxFileSize, this.maxFileCount)
+	lb.id = md5str(fmt.Sprint(fileDir, fileName))
+	fbf.add(fileDir, fileName, _suffix, lb.maxFileSize, lb.maxFileCount)
 }
 
-func (this *logBean) setRollingDaily(fileDir, fileName string) {
-	this.rolltype = _DAILY
+func (lb *logBean) setRollingDaily(fileDir, fileName string) {
+	lb.rolltype = RollTypeDaily
 	mkdirlog(fileDir)
-	this.id = md5str(fmt.Sprint(fileDir, fileName))
+	lb.id = md5str(fmt.Sprint(fileDir, fileName))
 	fbf.add(fileDir, fileName, 0, 0, 0)
 }
 
-func (this *logBean) setRollingHourly(fileDir, fileName string) {
-	this.rolltype = _HOURLY
+func (lb *logBean) setRollingHourly(fileDir, fileName string) {
+	lb.rolltype = RollTypeDaily
 	mkdirlog(fileDir)
-	this.id = md5str(fmt.Sprint(fileDir, fileName))
+	lb.id = md5str(fmt.Sprint(fileDir, fileName))
 	fbf.add(fileDir, fileName, 0, 0, 0)
 }
 
-func (this *logBean) console(v ...interface{}) {
+func (lb *logBean) console(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	if this.consoleAppender {
+	if lb.consoleAppender {
 		_, file, line, _ := runtime.Caller(skip)
 		short := file
 		for i := len(file) - 1; i > 0; i-- {
@@ -217,7 +242,7 @@ func (this *logBean) console(v ...interface{}) {
 			}
 		}
 		file = short
-		if this.format == "" {
+		if lb.format == "" {
 			log.Println(file, strconv.Itoa(line), s)
 		} else {
 			vs := make([]interface{}, 0)
@@ -226,111 +251,109 @@ func (this *logBean) console(v ...interface{}) {
 			for _, vv := range v {
 				vs = append(vs, vv)
 			}
-			log.Printf(fmt.Sprint("%s %s ", this.format, "\n"), vs...)
+			log.Printf(fmt.Sprint("%s %s ", lb.format, "\n"), vs...)
 		}
 	}
 }
 
-func (this *logBean) log(level string, v ...interface{}) {
+func (lb *logBean) log(level string, v ...interface{}) {
 	defer catchError()
 	s := fmt.Sprint(v...)
 	length := len([]byte(s))
-	var lg *fileBean = fbf.get(this.id)
+	lg := fbf.get(lb.id)
 	var _level = ALL
 	switch level {
 	case "TRACE":
-		if this.d != "" {
-			lg = fbf.get(this.d)
+		if lb.d != "" {
+			lg = fbf.get(lb.d)
 		}
 		_level = TRACE
 	case "DEBUG":
-		if this.d != "" {
-			lg = fbf.get(this.d)
+		if lb.d != "" {
+			lg = fbf.get(lb.d)
 		}
 		_level = DEBUG
 	case "INFO":
-		if this.i != "" {
-			lg = fbf.get(this.i)
+		if lb.i != "" {
+			lg = fbf.get(lb.i)
 		}
 		_level = INFO
 	case "WARN":
-		if this.w != "" {
-			lg = fbf.get(this.w)
+		if lb.w != "" {
+			lg = fbf.get(lb.w)
 		}
 		_level = WARN
 	case "ERROR":
-		if this.e != "" {
-			lg = fbf.get(this.e)
+		if lb.e != "" {
+			lg = fbf.get(lb.e)
 		}
 		_level = ERROR
 	case "FATAL":
-		if this.f != "" {
-			lg = fbf.get(this.f)
+		if lb.f != "" {
+			lg = fbf.get(lb.f)
 		}
 		_level = FATAL
 	}
 	if lg != nil {
-		this.fileCheck(lg)
+		lb.fileCheck(lg)
 		lg.addsize(int64(length))
-		if this.logLevel <= _level {
+		if lb.logLevel <= _level {
 			if lg != nil {
-				if this.format == "" {
+				if lb.format == "" {
 					lg.write(level, s)
 				} else {
-					lg.writef(this.format, v...)
+					lg.writef(lb.format, v...)
 				}
 			}
-			this.console(v...)
+			lb.console(v...)
 		}
 	} else {
-		this.console(v...)
+		lb.console(v...)
 	}
 }
 
-func (this *logBean) trace(v ...interface{}) {
-	this.log("TRACE", v...)
+func (lb *logBean) trace(v ...interface{}) {
+	lb.log("TRACE", v...)
 }
 
-func (this *logBean) debug(v ...interface{}) {
-	this.log("DEBUG", v...)
+func (lb *logBean) debug(v ...interface{}) {
+	lb.log("DEBUG", v...)
 }
-func (this *logBean) info(v ...interface{}) {
-	this.log("INFO", v...)
+func (lb *logBean) info(v ...interface{}) {
+	lb.log("INFO", v...)
 }
-func (this *logBean) warn(v ...interface{}) {
-	this.log("WARN", v...)
+func (lb *logBean) warn(v ...interface{}) {
+	lb.log("WARN", v...)
 }
-func (this *logBean) error(v ...interface{}) {
-	this.log("ERROR", v...)
+func (lb *logBean) error(v ...interface{}) {
+	lb.log("ERROR", v...)
 }
-func (this *logBean) fatal(v ...interface{}) {
-	this.log("FATAL", v...)
+func (lb *logBean) fatal(v ...interface{}) {
+	lb.log("FATAL", v...)
 }
 
-func (this *logBean) fileCheck(fb *fileBean) {
+func (lb *logBean) fileCheck(fb *fileBean) {
 	defer catchError()
-	if this.isMustRename(fb) {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-		if this.isMustRename(fb) {
-			fb.rename(this.rolltype)
+	if lb.isMustRename(fb) {
+		lb.mu.Lock()
+		defer lb.mu.Unlock()
+		if lb.isMustRename(fb) {
+			fb.rename(lb.rolltype)
 		}
 	}
 }
 
-//--------------------------------------------------------------------------------
-
-func (this *logBean) isMustRename(fb *fileBean) bool {
-	switch this.rolltype {
-	case _DAILY:
-		t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
+func (lb *logBean) isMustRename(fb *fileBean) bool {
+	switch lb.rolltype {
+	case RollTypeDaily:
+		t, _ := time.Parse(DateFormat, time.Now().Format(DateFormat))
 		if t.After(*fb._date) {
 			return true
 		}
-	case _ROLLFILE:
+	case RollTypeFile:
 		return fb.isOverSize()
-	case _HOURLY:
-		t, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
+	case RollTypeHourly:
+		t, _ := time.Parse(HourFormat, time.Now().Format(HourFormat))
 		if t.After(*fb._hour) {
 			return true
 		}
@@ -339,13 +362,13 @@ func (this *logBean) isMustRename(fb *fileBean) bool {
 	return false
 }
 
-func (this *fileBean) nextSuffix() int {
-	return int(this._suffix%int(this.maxFileCount) + 1)
+func (fb *fileBean) nextSuffix() int {
+	return int(fb._suffix%int(fb.maxFileCount) + 1)
 }
 
 func newFileBean(fileDir, fileName string, _suffix int, maxSize int64, maxfileCount int32) (fb *fileBean) {
-	t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
-	th, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
+	t, _ := time.Parse(DateFormat, time.Now().Format(DateFormat))
+	th, _ := time.Parse(HourFormat, time.Now().Format(HourFormat))
 	fb = &fileBean{dir: fileDir, filename: fileName, _date: &t, _hour: &th, mu: new(sync.RWMutex)}
 	fb.logfile, _ = os.OpenFile(fileDir+"/"+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	fb.lg = log.New(fb.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
@@ -358,59 +381,57 @@ func newFileBean(fileDir, fileName string, _suffix int, maxSize int64, maxfileCo
 	return
 }
 
-func (this *fileBean) rename(rolltype _ROLLTYPE) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-	this.close()
+func (fb *fileBean) rename(rolltype RollType) {
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	fb.close()
 	nextfilename := ""
 	switch rolltype {
-	case _DAILY:
-		nextfilename = fmt.Sprint(this.dir, "/", this.filename, ".", this._date.Format(_DATEFORMAT))
-	case _ROLLFILE:
-		nextfilename = fmt.Sprint(this.dir, "/", this.filename, ".", this.nextSuffix())
-		this._suffix = this.nextSuffix()
-	case _HOURLY:
-		nextfilename = fmt.Sprint(this.dir, "/", this.filename, ".", this._hour.Format(_HOURFORMAT))
+	case RollTypeDaily:
+		nextfilename = fmt.Sprint(fb.dir, "/", fb.filename, ".", fb._date.Format(DateFormat))
+	case RollTypeFile:
+		nextfilename = fmt.Sprint(fb.dir, "/", fb.filename, ".", fb.nextSuffix())
+		fb._suffix = fb.nextSuffix()
+	case RollTypeHourly:
+		nextfilename = fmt.Sprint(fb.dir, "/", fb.filename, ".", fb._hour.Format(HourFormat))
 	}
 	if isExist(nextfilename) {
 		os.Remove(nextfilename)
 	}
-	os.Rename(this.dir+"/"+this.filename, nextfilename)
-	this.logfile, _ = os.OpenFile(this.dir+"/"+this.filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-	this.lg = log.New(this.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
-	this.filesize = fileSize(this.dir + "/" + this.filename)
-	t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
-	this._date = &t
-	th, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
-	this._hour = &th
+	os.Rename(fb.dir+"/"+fb.filename, nextfilename)
+	fb.logfile, _ = os.OpenFile(fb.dir+"/"+fb.filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	fb.lg = log.New(fb.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
+	fb.filesize = fileSize(fb.dir + "/" + fb.filename)
+	t, _ := time.Parse(DateFormat, time.Now().Format(DateFormat))
+	fb._date = &t
+	th, _ := time.Parse(HourFormat, time.Now().Format(HourFormat))
+	fb._hour = &th
 }
 
-func (this *fileBean) addsize(size int64) {
-	atomic.AddInt64(&this.filesize, size)
+func (fb *fileBean) addsize(size int64) {
+	atomic.AddInt64(&fb.filesize, size)
 }
 
-func (this *fileBean) write(level string, v ...interface{}) {
-	this.mu.RLock()
-	defer this.mu.RUnlock()
+func (fb *fileBean) write(level string, v ...interface{}) {
+	fb.mu.RLock()
+	defer fb.mu.RUnlock()
 	s := fmt.Sprint(v...)
-	this.lg.Output(skip+1, fmt.Sprintln(level, s))
+	fb.lg.Output(skip+1, fmt.Sprintln(level, s))
 }
 
-func (this *fileBean) writef(format string, v ...interface{}) {
-	this.mu.RLock()
-	defer this.mu.RUnlock()
-	this.lg.Output(skip+1, fmt.Sprintf(format, v...))
+func (fb *fileBean) writef(format string, v ...interface{}) {
+	fb.mu.RLock()
+	defer fb.mu.RUnlock()
+	fb.lg.Output(skip+1, fmt.Sprintf(format, v...))
 }
 
-func (this *fileBean) isOverSize() bool {
-	return this.filesize >= this.maxFileSize
+func (fb *fileBean) isOverSize() bool {
+	return fb.filesize >= fb.maxFileSize
 }
 
-func (this *fileBean) close() {
-	this.logfile.Close()
+func (fb *fileBean) close() {
+	fb.logfile.Close()
 }
-
-//-----------------------------------------------------------------------------------------------
 
 func mkdirlog(dir string) (e error) {
 	_, er := os.Stat(dir)

@@ -41,6 +41,10 @@ func (this *logger) SetRollingDaily(fileDir, fileName string) {
 	this.lb.setRollingDaily(fileDir, fileName)
 }
 
+func (this *logger) Trace(v ...interface{}) {
+	this.lb.trace(v...)
+}
+
 func (this *logger) Debug(v ...interface{}) {
 	this.lb.debug(v...)
 }
@@ -101,6 +105,7 @@ type fileBean struct {
 	filename     string
 	_suffix      int
 	_date        *time.Time
+	_hour        *time.Time
 	mu           *sync.RWMutex
 	logfile      *os.File
 	lg           *log.Logger
@@ -193,6 +198,13 @@ func (this *logBean) setRollingDaily(fileDir, fileName string) {
 	fbf.add(fileDir, fileName, 0, 0, 0)
 }
 
+func (this *logBean) setRollingHourly(fileDir, fileName string) {
+	this.rolltype = _HOURLY
+	mkdirlog(fileDir)
+	this.id = md5str(fmt.Sprint(fileDir, fileName))
+	fbf.add(fileDir, fileName, 0, 0, 0)
+}
+
 func (this *logBean) console(v ...interface{}) {
 	s := fmt.Sprint(v...)
 	if this.consoleAppender {
@@ -226,27 +238,32 @@ func (this *logBean) log(level string, v ...interface{}) {
 	var lg *fileBean = fbf.get(this.id)
 	var _level = ALL
 	switch level {
-	case "debug":
+	case "TRACE":
+		if this.d != "" {
+			lg = fbf.get(this.d)
+		}
+		_level = TRACE
+	case "DEBUG":
 		if this.d != "" {
 			lg = fbf.get(this.d)
 		}
 		_level = DEBUG
-	case "info":
+	case "INFO":
 		if this.i != "" {
 			lg = fbf.get(this.i)
 		}
 		_level = INFO
-	case "warn":
+	case "WARN":
 		if this.w != "" {
 			lg = fbf.get(this.w)
 		}
 		_level = WARN
-	case "error":
+	case "ERROR":
 		if this.e != "" {
 			lg = fbf.get(this.e)
 		}
 		_level = ERROR
-	case "fatal":
+	case "FATAL":
 		if this.f != "" {
 			lg = fbf.get(this.f)
 		}
@@ -270,20 +287,24 @@ func (this *logBean) log(level string, v ...interface{}) {
 	}
 }
 
+func (this *logBean) trace(v ...interface{}) {
+	this.log("TRACE", v...)
+}
+
 func (this *logBean) debug(v ...interface{}) {
-	this.log("debug", v...)
+	this.log("DEBUG", v...)
 }
 func (this *logBean) info(v ...interface{}) {
-	this.log("info", v...)
+	this.log("INFO", v...)
 }
 func (this *logBean) warn(v ...interface{}) {
-	this.log("warn", v...)
+	this.log("WARN", v...)
 }
 func (this *logBean) error(v ...interface{}) {
-	this.log("error", v...)
+	this.log("ERROR", v...)
 }
 func (this *logBean) fatal(v ...interface{}) {
-	this.log("fatal", v...)
+	this.log("FATAL", v...)
 }
 
 func (this *logBean) fileCheck(fb *fileBean) {
@@ -308,7 +329,13 @@ func (this *logBean) isMustRename(fb *fileBean) bool {
 		}
 	case _ROLLFILE:
 		return fb.isOverSize()
+	case _HOURLY:
+		t, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
+		if t.After(*fb._hour) {
+			return true
+		}
 	}
+
 	return false
 }
 
@@ -318,7 +345,8 @@ func (this *fileBean) nextSuffix() int {
 
 func newFileBean(fileDir, fileName string, _suffix int, maxSize int64, maxfileCount int32) (fb *fileBean) {
 	t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
-	fb = &fileBean{dir: fileDir, filename: fileName, _date: &t, mu: new(sync.RWMutex)}
+	th, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
+	fb = &fileBean{dir: fileDir, filename: fileName, _date: &t, _hour: &th, mu: new(sync.RWMutex)}
 	fb.logfile, _ = os.OpenFile(fileDir+"/"+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	fb.lg = log.New(fb.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	fb._suffix = _suffix
@@ -326,6 +354,7 @@ func newFileBean(fileDir, fileName string, _suffix int, maxSize int64, maxfileCo
 	fb.maxFileCount = maxfileCount
 	fb.filesize = fileSize(fileDir + "/" + fileName)
 	fb._date = &t
+	fb._hour = &th
 	return
 }
 
@@ -340,16 +369,20 @@ func (this *fileBean) rename(rolltype _ROLLTYPE) {
 	case _ROLLFILE:
 		nextfilename = fmt.Sprint(this.dir, "/", this.filename, ".", this.nextSuffix())
 		this._suffix = this.nextSuffix()
+	case _HOURLY:
+		nextfilename = fmt.Sprint(this.dir, "/", this.filename, ".", this._hour.Format(_HOURFORMAT))
 	}
 	if isExist(nextfilename) {
 		os.Remove(nextfilename)
 	}
 	os.Rename(this.dir+"/"+this.filename, nextfilename)
-	t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
-	this._date = &t
 	this.logfile, _ = os.OpenFile(this.dir+"/"+this.filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	this.lg = log.New(this.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	this.filesize = fileSize(this.dir + "/" + this.filename)
+	t, _ := time.Parse(_DATEFORMAT, time.Now().Format(_DATEFORMAT))
+	this._date = &t
+	th, _ := time.Parse(_HOURFORMAT, time.Now().Format(_HOURFORMAT))
+	this._hour = &th
 }
 
 func (this *fileBean) addsize(size int64) {

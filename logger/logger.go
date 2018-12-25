@@ -12,6 +12,7 @@ type UNIT int64
 type _ROLLTYPE int //dailyRolling ,rollingFile
 
 const _DATEFORMAT = "2006-01-02"
+const _HOURFORMAT = "2006-01-02_15"
 
 var logLevel LEVEL = 1
 
@@ -24,18 +25,20 @@ const (
 )
 
 const (
-	ALL LEVEL = iota
-	DEBUG
-	INFO
-	WARN
-	ERROR
-	FATAL
-	OFF
+	ALL   LEVEL = -1
+	TRACE LEVEL = 0
+	DEBUG LEVEL = 1
+	INFO  LEVEL = 2
+	WARN  LEVEL = 3
+	ERROR LEVEL = 4
+	FATAL LEVEL = 5
+	OFF   LEVEL = 6
 )
 
 const (
 	_DAILY _ROLLTYPE = iota
 	_ROLLFILE
+	_HOURLY
 )
 
 func SetConsole(isConsole bool) {
@@ -93,6 +96,10 @@ func SetRollingDaily(fileDir, fileName string) {
 	defaultlog.setRollingDaily(fileDir, fileName)
 }
 
+func SetRollingHourly(fileDir, fileName string) {
+	defaultlog.setRollingHourly(fileDir, fileName)
+}
+
 //func console(s ...interface{}) {
 //	if consoleAppender {
 //		_, file, line, _ := runtime.Caller(2)
@@ -113,6 +120,10 @@ func SetRollingDaily(fileDir, fileName string) {
 //		log.Println("err", err)
 //	}
 //}
+
+func Trace(v ...interface{}) {
+	defaultlog.trace(v...)
+}
 
 func Debug(v ...interface{}) {
 	//	if dailyRolling {
